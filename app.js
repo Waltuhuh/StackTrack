@@ -2,21 +2,21 @@
    CONSTANTS
    ============================================================ */
 var POPULAR = [
-    { symbol: 'AAPL', name: 'Apple Inc.', base: 189.50 },
-    { symbol: 'MSFT', name: 'Microsoft Corp.', base: 415.60 },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', base: 174.20 },
-    { symbol: 'AMZN', name: 'Amazon.com Inc.', base: 185.90 },
-    { symbol: 'META', name: 'Meta Platforms', base: 505.40 },
-    { symbol: 'TSLA', name: 'Tesla Inc.', base: 248.30 },
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', base: 878.40 },
-    { symbol: 'JPM', name: 'JPMorgan Chase', base: 198.50 },
-    { symbol: 'V', name: 'Visa Inc.', base: 281.70 },
-    { symbol: 'NFLX', name: 'Netflix Inc.', base: 628.50 },
-    { symbol: 'AMD', name: 'Advanced Micro Devices', base: 174.80 },
-    { symbol: 'DIS', name: 'Walt Disney Co.', base: 112.40 },
-    { symbol: 'PYPL', name: 'PayPal Holdings', base: 63.20 },
-    { symbol: 'INTC', name: 'Intel Corp.', base: 44.50 },
-    { symbol: 'COIN', name: 'Coinbase Global', base: 235.60 },
+    { symbol: 'AAPL', name: 'Apple Inc.', base: 189.50, keywords: 'phone mobile tech computers mac iphone smart' },
+    { symbol: 'MSFT', name: 'Microsoft Corp.', base: 415.60, keywords: 'windows software tech cloud pc computer' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.', base: 174.20, keywords: 'google search internet tech software web' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.', base: 185.90, keywords: 'shopping retail cloud tech ecommerce store' },
+    { symbol: 'META', name: 'Meta Platforms', base: 505.40, keywords: 'facebook instagram whatsapp social media vr tech' },
+    { symbol: 'TSLA', name: 'Tesla Inc.', base: 248.30, keywords: 'elon musk ev cars electric vehicle auto' },
+    { symbol: 'NVDA', name: 'NVIDIA Corp.', base: 878.40, keywords: 'chips processors gpu hardware tech ai artificial intelligence' },
+    { symbol: 'JPM', name: 'JPMorgan Chase', base: 198.50, keywords: 'bank finance money banking investment' },
+    { symbol: 'V', name: 'Visa Inc.', base: 281.70, keywords: 'credit card payments finance money transaction' },
+    { symbol: 'NFLX', name: 'Netflix Inc.', base: 628.50, keywords: 'streaming video movies entertainment media show' },
+    { symbol: 'AMD', name: 'Advanced Micro Devices', base: 174.80, keywords: 'processors chips hardware tech computing' },
+    { symbol: 'DIS', name: 'Walt Disney Co.', base: 112.40, keywords: 'movies entertainment media theme parks kids' },
+    { symbol: 'PYPL', name: 'PayPal Holdings', base: 63.20, keywords: 'payments finance money digital wallet' },
+    { symbol: 'INTC', name: 'Intel Corp.', base: 44.50, keywords: 'processors chips hardware tech computing' },
+    { symbol: 'COIN', name: 'Coinbase Global', base: 235.60, keywords: 'crypto cryptocurrency bitcoin ethereum finance' },
 ];
 
 var DEMO_PROFILES = {
@@ -535,12 +535,28 @@ function fetchCandles(symbol, resolution, from, to) {
 }
 
 function searchSymbols(q) {
+    q = q.toLowerCase();
+
+    // 1. Always do a local "Smart / Natural Language" search first
+    var localMatches = POPULAR.filter(function (s) {
+        var inSym = s.symbol.toLowerCase().indexOf(q) >= 0;
+        var inName = s.name.toLowerCase().indexOf(q) >= 0;
+        var inKeywords = s.keywords && s.keywords.toLowerCase().indexOf(q) >= 0;
+        return inSym || inName || inKeywords;
+    }).map(function (s) { return { symbol: s.symbol, description: s.name, type: 'Common Stock' }; });
+
     if (G.demoMode) {
-        q = q.toLowerCase();
-        return Promise.resolve(POPULAR.filter(function (s) { return s.symbol.toLowerCase().indexOf(q) >= 0 || s.name.toLowerCase().indexOf(q) >= 0; })
-            .map(function (s) { return { symbol: s.symbol, description: s.name, type: 'Common Stock' }; }));
+        return Promise.resolve(localMatches);
     }
-    return apiFetch('/search?q=' + encodeURIComponent(q)).then(function (d) { return d.result || []; }).catch(function () { return []; });
+
+    // 2. In live mode, combine local smart matches with Finnhub's text search
+    return apiFetch('/search?q=' + encodeURIComponent(q)).then(function (d) {
+        var apiResults = d.result || [];
+        // Optional: remove duplicates if a local match is also in API results
+        var localSyms = localMatches.map(function (m) { return m.symbol; });
+        var filteredApi = apiResults.filter(function (r) { return localSyms.indexOf(r.symbol) === -1; });
+        return localMatches.concat(filteredApi);
+    }).catch(function () { return localMatches; });
 }
 
 function fetchProfile(symbol) {
