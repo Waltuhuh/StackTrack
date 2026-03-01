@@ -805,6 +805,12 @@ body {
   text-overflow: ellipsis;
 }
 
+.si-sparkline {
+  width: 60px;
+  height: 24px;
+  margin: 0 10px;
+}
+
 .si-price {
   font-weight: 700;
   font-size: 14px;
@@ -830,6 +836,33 @@ body {
 /* ═════════════════════════════════════════════
    SEARCH
 ═══════════════════════════════════════════ */
+.market-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.market-select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-s);
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23a0a0b0" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.market-select:hover {
+  border-color: var(--primary);
+}
+
 .search-bar {
   display: flex;
   align-items: center;
@@ -1361,6 +1394,359 @@ body {
 .badge.down {
   background: var(--red-bg);
   color: var(--red);
+}
+
+/* ═════════════════════════════════════════════
+   AI NEWS & EVENT LOG
+═══════════════════════════════════════════ */
+.ai-summary-box {
+  background: linear-gradient(135deg, rgba(124, 111, 255, 0.1), rgba(0, 212, 170, 0.05));
+  border: 1px solid rgba(124, 111, 255, 0.2);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-icon {
+  font-size: 20px;
+  animation: pulse 2s infinite;
+}
+
+.ai-header h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  background: linear-gradient(90deg, #7c6fff, #00d4aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ai-content {
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.news-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.news-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  border-color: var(--border2);
+}
+
+.news-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.news-source {
+  color: var(--primary);
+  background: rgba(124, 111, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.news-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-summary {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.news-link {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.news-image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: var(--surface2);
+}
+
+/* ── LIVE MAJOR TOPICS TIMELINE ── */
+.topics-timeline-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.timeline-scroller {
+  display: flex;
+  overflow-x: auto;
+  gap: 16px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.timeline-scroller::-webkit-scrollbar {
+  height: 6px;
+}
+
+.timeline-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--border2);
+  border-radius: 3px;
+}
+
+.timeline-item {
+  flex: 0 0 240px;
+  background: var(--bg2);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.timeline-item:hover {
+  transform: translateY(-2px);
+  background: var(--surface2);
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 700;
+}
+
+.timeline-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── DOM CHART THUMBNAILS & GLOW ── */
+.chart-thumbnail {
+  position: absolute;
+  width: 60px;
+  height: 40px;
+  border-radius: 4px;
+  border: 2px solid #ffeb3b;
+  box-shadow: 0 0 12px rgba(255, 235, 59, 0.6), 0 4px 8px rgba(0, 0, 0, 0.5);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  /* Let clicks pass through to chart */
+  transform: translate(-50%, -100%);
+  /* Center horizontally above the point */
+  margin-top: -15px;
+  /* Offset to float well above the bubble */
+  opacity: 0;
+  transition: opacity 0.2s, top 0.2s, left 0.2s;
+  z-index: 10;
+}
+
+.thumbnail-connector {
+  position: absolute;
+  width: 2px;
+  background-image: linear-gradient(to bottom, #ffeb3b 50%, transparent 50%);
+  background-size: 100% 6px;
+  /* Creates the dashed effect vertically */
+  transform: translateX(-50%);
+  /* Centers the line exactly over the dot */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s, top 0.2s, height 0.2s, left 0.2s;
+  z-index: 9;
+}
+
+/* ── DETAILED NEWS MODAL ── */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  padding: 40px 20px;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255, 107, 107, 0.8);
+}
+
+.news-modal-content {
+  max-width: 650px;
+  padding: 0;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.nm-hero {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  border-bottom: 1px solid var(--border);
+}
+
+.nm-body {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.nm-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.nm-source {
+  color: var(--primary);
+  background: rgba(124, 111, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.nm-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 20px;
+}
+
+.nm-keypoints {
+  background: var(--bg2);
+  border-left: 4px solid #00d4aa;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+
+.nm-keypoints h4 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nm-keypoints ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.nm-keypoints li {
+  margin-bottom: 8px;
+}
+
+.nm-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  background: var(--bg2);
 }
 
 .divider {

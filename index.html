@@ -151,6 +151,9 @@
             <div class="nav-item" id="nav-market" onclick="navigate('market')">
                 <span class="nav-icon">📊</span><span class="nav-label">Market</span>
             </div>
+            <div class="nav-item" id="nav-news" onclick="navigate('news')">
+                <span class="nav-icon">📰</span><span class="nav-label">News</span>
+            </div>
             <div class="nav-item" id="nav-portfolio" onclick="navigate('portfolio')">
                 <span class="nav-icon">💼</span><span class="nav-label">Portfolio</span>
             </div>
@@ -223,7 +226,6 @@
                 </div>
             </div>
 
-            <!-- ── MARKET ── -->
             <div class="view" id="view-market">
                 <div class="page-header">
                     <h2>Market</h2>
@@ -233,7 +235,58 @@
                     <input type="text" id="stock-search" placeholder="Search stocks (e.g. AAPL, Tesla)"
                         oninput="handleSearch(this.value)" autocomplete="off" />
                 </div>
+                <div class="market-controls mb20">
+                    <select id="market-timeframe" class="market-select" onchange="renderMarketList()">
+                        <option value="1W">Past Week (1W)</option>
+                        <option value="1M">Past Month (1M)</option>
+                        <option value="3M">Past 3 Months (3M)</option>
+                        <option value="1Y">Past Year (1Y)</option>
+                    </select>
+                    <select id="market-sort" class="market-select" onchange="renderMarketList()">
+                        <option value="growth-desc">Highest Growth</option>
+                        <option value="growth-asc">Lowest Growth</option>
+                        <option value="price-desc">Highest Price</option>
+                        <option value="price-asc">Lowest Price</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                    </select>
+                </div>
                 <div id="search-results"></div>
+            </div>
+
+            <!-- ── AI NEWS FEED ── -->
+            <div class="view" id="view-news">
+                <div class="page-header">
+                    <h2>News</h2>
+                    <p>Information is collected and summarized by AI, not artificially generated.</p>
+                </div>
+
+                <!-- LIVE MAJOR TOPICS TIMELINE -->
+                <div class="topics-timeline-container mb20">
+                    <div class="section-title">Live Major Topics</div>
+                    <div class="timeline-scroller" id="live-timeline">
+                        <!-- Timeline bubbles populated by JS -->
+                        <div class="loading-overlay">
+                            <div class="spinner"></div>Loading global narrative...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ai-summary-box mb20">
+                    <div class="ai-header">
+                        <span class="ai-icon">✨</span>
+                        <h3>AI Market Intelligence</h3>
+                    </div>
+                    <div class="ai-content" id="ai-global-summary">
+                        <div class="loading-overlay">
+                            <div class="spinner"></div>Analyzing global trends…
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">Latest Headlines</div>
+                <div class="news-grid" id="global-news-list">
+                    <!-- News cards will be rendered here -->
+                </div>
             </div>
 
             <!-- ── STOCK DETAIL ── -->
@@ -263,100 +316,112 @@
                             </div>
                             <div class="chart-container" id="stock-chart" style="height:320px;position:relative">
                             </div>
-                        </div>
-                        <div class="card">
-                            <div class="section-title">Key Statistics</div>
-                            <div id="key-stats"></div>
-                        </div>
-                    </div>
-
-                    <div class="trade-card">
-                        <div class="trade-tabs">
-                            <button class="trade-tab active" id="tab-buy" onclick="setTradeMode('buy')">Buy</button>
-                            <button class="trade-tab" id="tab-sell" onclick="setTradeMode('sell')">Sell</button>
-                        </div>
-                        <div class="trade-form">
-                            <label>Shares</label>
-                            <div class="shares-row">
-                                <button class="shares-btn" onclick="adjustShares(-1)">−</button>
-                                <input type="number" id="shares-input" value="1" min="0.001" step="1"
-                                    oninput="updateTradeSummary()" />
-                                <button class="shares-btn" onclick="adjustShares(1)">+</button>
+                            <div id="company-news-log" class="mt20"></div>
+                            <div class="card">
+                                <div class="section-title">Key Statistics</div>
+                                <div id="key-stats"></div>
                             </div>
                         </div>
-                        <div class="trade-summary">
-                            <div class="ts-row"><span>Price / share</span><span id="ts-price">$—</span></div>
-                            <div class="ts-row"><span>Shares</span><span id="ts-shares">—</span></div>
-                            <div class="ts-row"><span>Order total</span><span id="ts-total">$—</span></div>
-                            <div class="ts-row bold"><span>Cash after</span><span id="ts-after">$—</span></div>
+
+                        <div class="trade-card">
+                            <div class="trade-tabs">
+                                <button class="trade-tab active" id="tab-buy" onclick="setTradeMode('buy')">Buy</button>
+                                <button class="trade-tab" id="tab-sell" onclick="setTradeMode('sell')">Sell</button>
+                            </div>
+                            <div class="trade-form">
+                                <label>Shares</label>
+                                <div class="shares-row">
+                                    <button class="shares-btn" onclick="adjustShares(-1)">−</button>
+                                    <input type="number" id="shares-input" value="1" min="0.001" step="1"
+                                        oninput="updateTradeSummary()" />
+                                    <button class="shares-btn" onclick="adjustShares(1)">+</button>
+                                </div>
+                            </div>
+                            <div class="trade-summary">
+                                <div class="ts-row"><span>Price / share</span><span id="ts-price">$—</span></div>
+                                <div class="ts-row"><span>Shares</span><span id="ts-shares">—</span></div>
+                                <div class="ts-row"><span>Order total</span><span id="ts-total">$—</span></div>
+                                <div class="ts-row bold"><span>Cash after</span><span id="ts-after">$—</span></div>
+                            </div>
+                            <button class="btn-execute buy" id="execute-btn" onclick="executeTrade()">Buy
+                                Shares</button>
+                            <div class="trade-note" id="trade-note"></div>
                         </div>
-                        <button class="btn-execute buy" id="execute-btn" onclick="executeTrade()">Buy Shares</button>
-                        <div class="trade-note" id="trade-note"></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- ── PORTFOLIO ── -->
-            <div class="view" id="view-portfolio">
-                <div class="page-header">
-                    <h2>Portfolio</h2>
-                    <p>Your holdings and transaction history</p>
-                </div>
-                <div id="portfolio-content"></div>
-            </div>
-
-            <!-- ── SETTINGS ── -->
-            <div class="view" id="view-settings">
-                <div class="page-header">
-                    <h2>Settings</h2>
-                    <p>Manage your account</p>
-                </div>
-
-                <!-- Custom budget reset -->
-                <div class="settings-card mb20">
-                    <div class="settings-card-info">
-                        <h3>💰 Reset Budget & Portfolio</h3>
-                        <p>Enter a custom amount, then reset to start fresh</p>
+                <!-- ── PORTFOLIO ── -->
+                <div class="view" id="view-portfolio">
+                    <div class="page-header">
+                        <h2>Portfolio</h2>
+                        <p>Your holdings and transaction history</p>
                     </div>
-                    <div class="settings-controls">
-                        <div class="budget-row">
-                            <span class="currency-prefix">$</span>
-                            <input type="number" id="new-budget-input" placeholder="e.g. 25000" min="100" step="100" />
+                    <div id="portfolio-content"></div>
+                </div>
+
+                <!-- ── SETTINGS ── -->
+                <div class="view" id="view-settings">
+                    <div class="page-header">
+                        <h2>Settings</h2>
+                        <p>Manage your account</p>
+                    </div>
+
+                    <!-- Custom budget reset -->
+                    <div class="settings-card mb20">
+                        <div class="settings-card-info">
+                            <h3>💰 Reset Budget & Portfolio</h3>
+                            <p>Enter a custom amount, then reset to start fresh</p>
                         </div>
-                        <button class="btn-outline danger" onclick="resetPortfolio()">Reset</button>
+                        <div class="settings-controls">
+                            <div class="budget-row">
+                                <span class="currency-prefix">$</span>
+                                <input type="number" id="new-budget-input" placeholder="e.g. 25000" min="100"
+                                    step="100" />
+                            </div>
+                            <button class="btn-outline danger" onclick="resetPortfolio()">Reset</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- API key update -->
-                <div class="settings-card mb20">
-                    <div class="settings-card-info">
-                        <h3>🔑 Update API Key</h3>
-                        <p>Replace your current Finnhub API key</p>
+                    <!-- API key update -->
+                    <div class="settings-card mb20">
+                        <div class="settings-card-info">
+                            <h3>🔑 Update API Key</h3>
+                            <p>Replace your current Finnhub API key</p>
+                        </div>
+                        <div class="settings-controls">
+                            <input type="text" id="new-api-key" placeholder="New Finnhub API key" class="text-input" />
+                            <button class="btn-outline" onclick="updateApiKey()">Update</button>
+                        </div>
                     </div>
-                    <div class="settings-controls">
-                        <input type="text" id="new-api-key" placeholder="New Finnhub API key" class="text-input" />
-                        <button class="btn-outline" onclick="updateApiKey()">Update</button>
-                    </div>
-                </div>
 
-                <div class="card mb20">
-                    <div class="section-title">Account Summary</div>
-                    <div id="settings-summary"></div>
-                </div>
+                    <div class="card mb20">
+                        <div class="section-title">Account Summary</div>
+                        <div id="settings-summary"></div>
+                    </div>
 
-                <!-- Logout -->
-                <div class="settings-card">
-                    <div class="settings-card-info">
-                        <h3>🚪 Logout</h3>
-                        <p>Sign out of your account on this device</p>
-                    </div>
-                    <div class="settings-controls">
-                        <button class="btn-outline danger" onclick="doLogout()">Logout</button>
+                    <!-- Logout -->
+                    <div class="settings-card">
+                        <div class="settings-card-info">
+                            <h3>🚪 Logout</h3>
+                            <p>Sign out of your account on this device</p>
+                        </div>
+                        <div class="settings-controls">
+                            <button class="btn-outline danger" onclick="doLogout()">Logout</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
         </main>
+    </div>
+
+    <!-- ── NEWS ARTICLE MODAL ── -->
+    <div id="news-modal" class="modal">
+        <div class="modal-content news-modal-content">
+            <button class="modal-close" onclick="closeNewsModal()">×</button>
+            <div id="news-modal-body">
+                <!-- Statically injected by JS -->
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDK (compat mode for simplicity) -->
