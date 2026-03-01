@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StockSim — Paper Trading Platform</title>
+    <meta name="description"
+        content="Track real stocks live and practice investing with an imaginary budget. No real money involved." />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     AUTH SCREEN (Login / Register)
+════════════════════════════════════════════════════════════ -->
+    <div id="auth-screen">
+        <div class="setup-card">
+            <div class="setup-logo">
+                <div class="logo-icon">📈</div>
+                <h1>StockSim</h1>
+            </div>
+            <h2>Sign In</h2>
+            <p>Log in or create an account to save your data across devices.</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" onclick="showAuthTab('login')">Login</button>
+                <button class="auth-tab" id="tab-register" onclick="showAuthTab('register')">Register</button>
+            </div>
+
+            <div id="auth-login">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-pass" placeholder="Your password"
+                        autocomplete="current-password" />
+                </div>
+                <button class="btn-primary" onclick="doLogin()">Log In →</button>
+            </div>
+
+            <div id="auth-register" style="display:none">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-pass" placeholder="Min 6 characters" autocomplete="new-password" />
+                </div>
+                <button class="btn-primary" onclick="doRegister()">Create Account →</button>
+            </div>
+
+            <div class="auth-error" id="auth-error"></div>
+            <div class="auth-hint" style="margin-top:12px;text-align:center">
+                <a href="#" onclick="doResetPassword();return false" style="color:var(--primary);font-size:12px">Forgot
+                    password?</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     SETUP SCREEN
+════════════════════════════════════════════════════════════ -->
+    <div id="setup-screen" style="display:none">
+        <div class="setup-card">
+            <div class="setup-logo">
+                <div class="logo-icon">📈</div>
+                <h1>StockSim</h1>
+            </div>
+            <h2>Welcome to StockSim</h2>
+            <p>Track real stocks with live prices and practice investing with an imaginary budget — zero real money.</p>
+
+            <div class="form-group">
+                <label>Finnhub API Key <span
+                        style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                <input type="text" id="api-key-input" placeholder="Paste key for live data, or leave empty for demo"
+                    autocomplete="off" />
+                <div class="form-hint">
+                    For live data: <a href="https://finnhub.io" target="_blank">finnhub.io</a> → Sign Up → API Key.
+                    <strong>Or skip for instant demo mode!</strong>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Starting Budget (USD)</label>
+                <div class="budget-row">
+                    <span class="currency-prefix">$</span>
+                    <input type="number" id="budget-input" placeholder="10000" min="100" step="100" value="10000" />
+                </div>
+                <div class="form-hint">Your imaginary investment capital — set any amount you like</div>
+            </div>
+
+            <div class="setup-btns">
+                <button class="btn-primary" id="start-btn" onclick="startApp()">Launch with API Key →</button>
+                <button class="btn-demo" id="demo-btn" onclick="startDemo()">⚡ Try Demo Mode (No Key
+                    Needed)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════════════════════ -->
+    <div id="app">
+
+        <!-- SIDEBAR -->
+        <nav class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon-sm">📈</div>
+                <span>StockSim</span>
+            </div>
+
+            <!-- SCENARIO SELECTOR -->
+            <div class="scenario-section">
+                <div class="scenario-label">SCENARIO</div>
+                <div class="scenario-selector" id="scenario-selector">
+                    <span class="scenario-dot" id="scenario-dot"></span>
+                    <span class="scenario-name" id="scenario-current-name">Scenario 1</span>
+                    <span class="scenario-arrow">▾</span>
+                </div>
+                <div class="scenario-panel" id="scenario-panel">
+                    <div class="scenario-list" id="scenario-list"></div>
+                    <div class="scenario-new-form" id="scenario-new-form" style="display:none">
+                        <input type="text" id="new-sc-name" class="sc-input" placeholder="Scenario name">
+                        <input type="number" id="new-sc-budget" class="sc-input" placeholder="Budget ($)" value="10000"
+                            min="100">
+                        <div class="sc-form-btns">
+                            <button class="sc-form-cancel" id="sc-cancel-btn">Cancel</button>
+                            <button class="sc-form-confirm" id="sc-confirm-btn">Create</button>
+                        </div>
+                    </div>
+                    <div class="scenario-actions" id="scenario-add-section">
+                        <button class="scenario-add-btn" id="scenario-add-btn">+ New Scenario</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">
+                <span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span>
+            </div>
+            <div class="nav-item" id="nav-market" onclick="navigate('market')">
+                <span class="nav-icon">📊</span><span class="nav-label">Market</span>
+            </div>
+            <div class="nav-item" id="nav-portfolio" onclick="navigate('portfolio')">
+                <span class="nav-icon">💼</span><span class="nav-label">Portfolio</span>
+            </div>
+            <div class="nav-item" id="nav-settings" onclick="navigate('settings')">
+                <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+            </div>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-budget-card">
+                    <div class="sb-label">Available Cash</div>
+                    <div class="sb-value" id="sidebar-cash">$—</div>
+                    <div class="sb-sub" id="sidebar-total">Total: $—</div>
+                    <div class="live-badge" style="margin-top:8px">
+                        <span class="live-dot"></span> Live prices
+                    </div>
+                </div>
+                <div class="sidebar-user" id="sidebar-user">
+                    <span class="user-icon">👤</span>
+                    <span class="user-name" id="sidebar-username">—</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+
+            <!-- ── DASHBOARD ── -->
+            <div class="view active" id="view-dashboard">
+                <div class="page-header">
+                    <h2>Dashboard</h2>
+                    <p>Your portfolio at a glance</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="sc-label">Total Value</div>
+                        <div class="sc-value" id="stat-total">$0.00</div>
+                        <div class="sc-sub" id="stat-total-sub"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-label">Cash Available</div>
+                        <div class="sc-value" id="stat-cash">$0.00</div>
+                        <div class="sc-sub">Ready to invest</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-label">Holdings Value</div>
+                        <div class="sc-value" id="stat-holdings">$0.00</div>
+                        <div class="sc-sub" id="stat-holdings-sub"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-label">Total Gain / Loss</div>
+                        <div class="sc-value" id="stat-gl">$0.00</div>
+                        <div class="sc-sub" id="stat-gl-sub"></div>
+                    </div>
+                </div>
+
+                <div class="two-col mb20">
+                    <div class="card">
+                        <div class="section-title">Portfolio Value Over Time</div>
+                        <div class="chart-container" id="portfolio-chart" style="height:250px;position:relative"></div>
+                    </div>
+                    <div class="card">
+                        <div class="section-title">Top Holdings</div>
+                        <div class="stock-list" id="top-holdings"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">Market Overview <span class="tag">Popular Stocks</span></div>
+                    <div class="stock-list" id="market-overview"></div>
+                </div>
+            </div>
+
+            <!-- ── MARKET ── -->
+            <div class="view" id="view-market">
+                <div class="page-header">
+                    <h2>Market</h2>
+                    <p>Search and browse stocks</p>
+                </div>
+                <div class="search-bar mb20">
+                    <input type="text" id="stock-search" placeholder="Search stocks (e.g. AAPL, Tesla)"
+                        oninput="handleSearch(this.value)" autocomplete="off" />
+                </div>
+                <div id="search-results"></div>
+            </div>
+
+            <!-- ── STOCK DETAIL ── -->
+            <div class="view" id="view-stock">
+                <button class="btn-back" onclick="navigate(lastView)">← Back</button>
+                <div class="detail-header">
+                    <div>
+                        <h2 id="det-symbol">—</h2>
+                        <p id="det-name" style="color:var(--text2);margin-top:4px">—</p>
+                        <p id="det-exchange" style="font-size:12px;color:var(--text3);margin-top:2px">—</p>
+                    </div>
+                    <div class="detail-price-box">
+                        <div class="dp-price" id="det-price">$—</div>
+                        <div class="dp-change" id="det-change">—</div>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div>
+                        <div class="card mb20">
+                            <div class="time-bar">
+                                <button class="time-btn active" onclick="setTimeFrame('1D',this)">1D</button>
+                                <button class="time-btn" onclick="setTimeFrame('1W',this)">1W</button>
+                                <button class="time-btn" onclick="setTimeFrame('1M',this)">1M</button>
+                                <button class="time-btn" onclick="setTimeFrame('3M',this)">3M</button>
+                                <button class="time-btn" onclick="setTimeFrame('1Y',this)">1Y</button>
+                            </div>
+                            <div class="chart-container" id="stock-chart" style="height:320px;position:relative">
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="section-title">Key Statistics</div>
+                            <div id="key-stats"></div>
+                        </div>
+                    </div>
+
+                    <div class="trade-card">
+                        <div class="trade-tabs">
+                            <button class="trade-tab active" id="tab-buy" onclick="setTradeMode('buy')">Buy</button>
+                            <button class="trade-tab" id="tab-sell" onclick="setTradeMode('sell')">Sell</button>
+                        </div>
+                        <div class="trade-form">
+                            <label>Shares</label>
+                            <div class="shares-row">
+                                <button class="shares-btn" onclick="adjustShares(-1)">−</button>
+                                <input type="number" id="shares-input" value="1" min="0.001" step="1"
+                                    oninput="updateTradeSummary()" />
+                                <button class="shares-btn" onclick="adjustShares(1)">+</button>
+                            </div>
+                        </div>
+                        <div class="trade-summary">
+                            <div class="ts-row"><span>Price / share</span><span id="ts-price">$—</span></div>
+                            <div class="ts-row"><span>Shares</span><span id="ts-shares">—</span></div>
+                            <div class="ts-row"><span>Order total</span><span id="ts-total">$—</span></div>
+                            <div class="ts-row bold"><span>Cash after</span><span id="ts-after">$—</span></div>
+                        </div>
+                        <button class="btn-execute buy" id="execute-btn" onclick="executeTrade()">Buy Shares</button>
+                        <div class="trade-note" id="trade-note"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── PORTFOLIO ── -->
+            <div class="view" id="view-portfolio">
+                <div class="page-header">
+                    <h2>Portfolio</h2>
+                    <p>Your holdings and transaction history</p>
+                </div>
+                <div id="portfolio-content"></div>
+            </div>
+
+            <!-- ── SETTINGS ── -->
+            <div class="view" id="view-settings">
+                <div class="page-header">
+                    <h2>Settings</h2>
+                    <p>Manage your account</p>
+                </div>
+
+                <!-- Custom budget reset -->
+                <div class="settings-card mb20">
+                    <div class="settings-card-info">
+                        <h3>💰 Reset Budget & Portfolio</h3>
+                        <p>Enter a custom amount, then reset to start fresh</p>
+                    </div>
+                    <div class="settings-controls">
+                        <div class="budget-row">
+                            <span class="currency-prefix">$</span>
+                            <input type="number" id="new-budget-input" placeholder="e.g. 25000" min="100" step="100" />
+                        </div>
+                        <button class="btn-outline danger" onclick="resetPortfolio()">Reset</button>
+                    </div>
+                </div>
+
+                <!-- API key update -->
+                <div class="settings-card mb20">
+                    <div class="settings-card-info">
+                        <h3>🔑 Update API Key</h3>
+                        <p>Replace your current Finnhub API key</p>
+                    </div>
+                    <div class="settings-controls">
+                        <input type="text" id="new-api-key" placeholder="New Finnhub API key" class="text-input" />
+                        <button class="btn-outline" onclick="updateApiKey()">Update</button>
+                    </div>
+                </div>
+
+                <div class="card mb20">
+                    <div class="section-title">Account Summary</div>
+                    <div id="settings-summary"></div>
+                </div>
+
+                <!-- Logout -->
+                <div class="settings-card">
+                    <div class="settings-card-info">
+                        <h3>🚪 Logout</h3>
+                        <p>Sign out of your account on this device</p>
+                    </div>
+                    <div class="settings-controls">
+                        <button class="btn-outline danger" onclick="doLogout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Firebase SDK (compat mode for simplicity) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
