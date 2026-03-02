@@ -37,7 +37,7 @@ var DEMO_PROFILES = {
     COIN: { name: 'Coinbase Global', exchange: 'NASDAQ', finnhubIndustry: 'Crypto', currency: 'USD', marketCap: 60e9 },
 };
 
-var SCENARIO_COLORS = ['#7c6fff', '#00d4aa', '#ff6b6b', '#ffd93d', '#4ecdc4', '#ff9f43', '#a29bfe', '#fd79a8', '#00cec9', '#e17055'];
+var SCENARIO_COLORS = ['#e8863a', '#2a6dbf', '#ff6b6b', '#ffd93d', '#4ecdc4', '#ff9f43', '#a29bfe', '#fd79a8', '#36d1dc', '#e17055'];
 
 /* ============================================================
    STATE
@@ -57,6 +57,23 @@ var S_detailChart = null;
 var _syncTimer = null;
 
 /* ============================================================
+   USER DROPDOWN MENU
+   ============================================================ */
+function toggleUserMenu() {
+    var dd = document.getElementById('user-dropdown');
+    dd.classList.toggle('open');
+}
+
+// Close user dropdown when clicking outside
+document.addEventListener('click', function (e) {
+    var wrap = document.querySelector('.top-nav-user-wrap');
+    var dd = document.getElementById('user-dropdown');
+    if (wrap && dd && !wrap.contains(e.target)) {
+        dd.classList.remove('open');
+    }
+});
+
+/* ============================================================
    FIREBASE AUTH
    ============================================================ */
 function showAuthTab(tab) {
@@ -70,11 +87,21 @@ function showAuthTab(tab) {
 function doLogin() {
     var email = document.getElementById('login-email').value.trim();
     var pass = document.getElementById('login-pass').value;
+    var remember = document.getElementById('login-remember').checked;
+
     if (!email || !pass) { document.getElementById('auth-error').textContent = 'Enter email and password'; return; }
     document.getElementById('auth-error').textContent = '';
-    auth.signInWithEmailAndPassword(email, pass).catch(function (err) {
-        document.getElementById('auth-error').textContent = err.message;
-    });
+
+    // Set Persistence based on "Remember me" checkbox
+    var persistenceType = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+
+    auth.setPersistence(persistenceType)
+        .then(function () {
+            return auth.signInWithEmailAndPassword(email, pass);
+        })
+        .catch(function (err) {
+            document.getElementById('auth-error').textContent = err.message;
+        });
 }
 
 function doRegister() {
@@ -116,6 +143,8 @@ auth.onAuthStateChanged(function (user) {
     if (user) {
         currentUser = user;
         document.getElementById('auth-screen').style.display = 'none';
+        var w = document.getElementById('welcome-wrapper');
+        if (w) w.style.display = 'none';
         var userEl = document.getElementById('sidebar-username');
         if (userEl) userEl.textContent = user.email.split('@')[0];
         loadFromFirestore();
@@ -153,17 +182,46 @@ function getFirestoreData() {
 function loadFromFirestore() {
     if (!currentUser) return;
     db.collection('users').doc(currentUser.uid).get().then(function (doc) {
-        if (doc.exists && doc.data().scenarios && doc.data().scenarios.length) {
+        var localData = null;
+        try { localData = JSON.parse(localStorage.getItem('stocksim_v3')); } catch (e) { }
+
+        if (doc.exists && doc.data() && (doc.data().scenarios || doc.data().apiKey || doc.data().demoMode)) {
             var d = doc.data();
             G.apiKey = d.apiKey || '';
             G.demoMode = !!d.demoMode;
-            G.scenarios = d.scenarios || [];
+            var rawScenarios = (d.scenarios && d.scenarios.length) ? d.scenarios : [newScenario('Scenario 1', 10000)];
+            G.scenarios = rawScenarios.map(function (sc) {
+                sc.portfolio = sc.portfolio || {};
+                sc.transactions = sc.transactions || [];
+                sc.portfolioHistory = sc.portfolioHistory || [];
+                sc.cash = typeof sc.cash === 'number' ? sc.cash : (sc.budget || 10000);
+                sc.budget = typeof sc.budget === 'number' ? sc.budget : 10000;
+                return sc;
+            });
             G.activeIdx = d.activeIdx || 0;
             if (G.activeIdx >= G.scenarios.length) G.activeIdx = 0;
             A = G.scenarios[G.activeIdx];
             initApp();
+        } else if (localData && (localData.apiKey || localData.demoMode)) {
+            // Fallback to localStorage
+            G.apiKey = localData.apiKey || '';
+            G.demoMode = !!localData.demoMode;
+            var rawScenarios = (localData.scenarios && localData.scenarios.length) ? localData.scenarios : [newScenario('Scenario 1', 10000)];
+            G.scenarios = rawScenarios.map(function (sc) {
+                sc.portfolio = sc.portfolio || {};
+                sc.transactions = sc.transactions || [];
+                sc.portfolioHistory = sc.portfolioHistory || [];
+                sc.cash = typeof sc.cash === 'number' ? sc.cash : (sc.budget || 10000);
+                sc.budget = typeof sc.budget === 'number' ? sc.budget : 10000;
+                return sc;
+            });
+            G.activeIdx = localData.activeIdx || 0;
+            if (G.activeIdx >= G.scenarios.length) G.activeIdx = 0;
+            A = G.scenarios[G.activeIdx];
+            syncToFirestore(true); // Sync the local recovery up to Firebase
+            initApp();
         } else {
-            // No saved data — show setup screen
+            // No saved data anywhere — show setup screen
             document.getElementById('setup-screen').style.display = 'flex';
         }
     }).catch(function (err) {
@@ -172,15 +230,20 @@ function loadFromFirestore() {
     });
 }
 
-function syncToFirestore() {
+function syncToFirestore(immediate) {
     if (!currentUser) return;
     clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(function () {
+    var doSave = function () {
         var data = getFirestoreData();
         db.collection('users').doc(currentUser.uid).set(data, { merge: true }).catch(function (err) {
             console.warn('Firestore save error:', err);
         });
-    }, 2000);
+    };
+    if (immediate) {
+        doSave();
+    } else {
+        _syncTimer = setTimeout(doSave, 2000);
+    }
 }
 
 /* ============================================================
@@ -386,7 +449,7 @@ function startApp() {
     G.apiKey = key; G.demoMode = false;
     G.scenarios = [newScenario('Scenario 1', budget)];
     G.activeIdx = 0; A = G.scenarios[0];
-    saveState(); initApp();
+    saveState(true); initApp();
 }
 
 function startDemo() {
@@ -395,7 +458,7 @@ function startDemo() {
     G.apiKey = ''; G.demoMode = true;
     G.scenarios = [newScenario('Scenario 1', budget)];
     G.activeIdx = 0; A = G.scenarios[0];
-    saveState(); initApp();
+    saveState(true); initApp();
 }
 
 function initApp() {
@@ -480,9 +543,9 @@ function generateDemoCandles(symbol, resolution, from, to) {
 /* ============================================================
    STORAGE — localStorage (instant) + Firestore (debounced 2s)
    ============================================================ */
-function saveState() {
+function saveState(immediate) {
     try { localStorage.setItem('stocksim_v3', JSON.stringify({ apiKey: G.apiKey, demoMode: G.demoMode, scenarios: G.scenarios, activeIdx: G.activeIdx, simBasePrices: G.simBasePrices })); } catch (e) { }
-    syncToFirestore();
+    syncToFirestore(immediate);
 }
 
 /* ============================================================
@@ -513,15 +576,85 @@ function apiFetch(path) {
         .then(function (res) { if (!res.ok) throw new Error('API ' + res.status); return res.json(); });
 }
 
-function fetchMarketNews() {
-    if (G.demoMode) return Promise.resolve(generateDemoNews('global'));
-    return apiFetch('/news?category=general').catch(function () { return generateDemoNews('global'); });
+function fetchMarketNews(pageToken) {
+    if (G.demoMode) return Promise.resolve({ articles: generateDemoNews('global'), nextPage: null });
+
+    // Use NewsData.io for global business news
+    var url = 'https://newsdata.io/api/1/news?apikey=pub_ff8f73f153a144eb989959029d95f5f0&language=en&category=business';
+    if (pageToken) url += '&page=' + encodeURIComponent(pageToken);
+
+    return fetch(url)
+        .then(function (res) {
+            if (!res.ok) throw new Error('NewsData API Error');
+            return res.json();
+        })
+        .then(function (data) {
+            if (!data || !data.results) return [];
+
+            // Map NewsData.io response to our internal format
+            var articles = data.results.map(function (article, i) {
+                return {
+                    id: article.article_id || i.toString(),
+                    category: 'business',
+                    datetime: new Date(article.pubDate).getTime() / 1000,
+                    headline: article.title || 'Market Update',
+                    image: article.image_url || '',
+                    related: '',
+                    source: article.source_id || 'News',
+                    summary: article.description || 'Traders are closely monitoring this recent development.',
+                    url: article.link || '#'
+                };
+            }).filter(function (a) {
+                // Filter out broken articles
+                return a.headline && a.summary;
+            });
+            return { articles: articles, nextPage: data.nextPage || null };
+        })
+        .catch(function (e) {
+            console.error('Failed to fetch from NewsData.io:', e);
+            return { articles: generateDemoNews('global'), nextPage: null }; // Fallback to demo news
+        });
 }
 
 function fetchCompanyNews(symbol, fromDate, toDate) {
     if (G.demoMode) return Promise.resolve(generateDemoNews('company', symbol));
     return apiFetch('/company-news?symbol=' + symbol + '&from=' + fromDate + '&to=' + toDate)
         .catch(function () { return generateDemoNews('company', symbol); });
+}
+
+
+
+/* ============================================================
+   GOOGLE GEMINI API INTEGRATION
+   ============================================================ */
+var GEMINI_API_KEY = "AIzaSyBeS77t2sup9eHM59iQW8gwKEvzBdQYb9I";
+
+function callGeminiAPI(prompt, model) {
+    if (!model) model = "gemini-1.5-flash"; // default fallback
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + GEMINI_API_KEY;
+
+    return fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        })
+    }).then(function (res) {
+        if (!res.ok) throw new Error("Gemini API Error: " + res.status);
+        return res.json();
+    }).then(function (data) {
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+            return data.candidates[0].content.parts[0].text;
+        }
+        return "Analysis currently unavailable.";
+    }).catch(function (err) {
+        console.error("Gemini API failed:", err);
+        return "Real-time AI analysis is currently unavailable. Please try again later.";
+    });
 }
 
 /* ============================================================
@@ -573,42 +706,114 @@ function generateDemoNews(type, symbol) {
     return articles.sort(function (a, b) { return b.datetime - a.datetime; });
 }
 
-function renderGlobalNews() {
+window._globalNewsList = [];
+window._newsNextPage = null;
+window._newsPollingInterval = null;
+
+function loadMoreNews() {
+    var btn = document.getElementById('news-load-more-btn');
+    if (btn) btn.innerHTML = '<div class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:8px;"></div>Loading...';
+
+    fetchMarketNews(window._newsNextPage).then(function (res) {
+        window._newsNextPage = res.nextPage;
+        var newArticles = res.articles || [];
+
+        // Append to global list and update Grid
+        window._globalNewsList = window._globalNewsList.concat(newArticles);
+        renderNewsGridOnly();
+    });
+}
+
+function renderNewsGridOnly() {
+    var list = document.getElementById('global-news-list');
+    if (!list) return;
+
+    // Skip the first 5 used for timeline, display the rest
+    var gridArticles = window._globalNewsList.slice(5);
+    drawNewsCards(gridArticles, list);
+
+    // Append load more button if we have a next page
+    if (window._newsNextPage) {
+        var btnHtml = '<div style="grid-column: 1/-1; text-align: center; margin-top: 20px;">' +
+            '<button id="news-load-more-btn" class="btn-primary" style="width: auto; padding: 12px 32px;" onclick="loadMoreNews()">Read More</button>' +
+            '</div>';
+        list.insertAdjacentHTML('beforeend', btnHtml);
+    }
+}
+
+function renderGlobalNews(forceRefresh) {
+    if (G.newsLoaded && !forceRefresh) return;
     G.newsLoaded = true;
+
+    // Setup periodic polling every 2 minutes if not already set
+    if (!window._newsPollingInterval) {
+        window._newsPollingInterval = setInterval(function () {
+            renderGlobalNews(true);
+        }, 120000);
+    }
+
     var list = document.getElementById('global-news-list');
     var aiText = document.getElementById('ai-global-summary');
-
-    // --- LIVE TIMELINE MOCK ---
     var timeline = document.getElementById('live-timeline');
+
     if (timeline) {
-        var topics = [
-            { time: '14:30', title: 'Major Central Banks to coordinate policy response.' },
-            { time: '13:45', title: 'Tech sector hit by new regulatory announcements in EU.' },
-            { time: '11:20', title: 'Global supply chain disputes escalate in Asia.' },
-            { time: '09:15', title: 'Energy prices surge following geopolitical tensions.' },
-            { time: '08:00', title: 'Markets open lower amidst macro uncertainty.' }
-        ];
-        timeline.innerHTML = topics.map(function (t) {
-            return '<div class="timeline-item"><span class="timeline-time">' + t.time + '</span><span class="timeline-title">' + t.title + '</span></div>';
-        }).join('');
+        timeline.innerHTML = '<div class="loading-overlay" style="width: 100%; border-radius: 8px;"><div class="spinner"></div>Loading global timeline...</div>';
     }
-    // --------------------------
 
-    list.innerHTML = '<div class="loading-overlay" style="grid-column: 1/-1"><div class="spinner"></div>Fetching global market news...</div>';
+    if (list) {
+        list.innerHTML = '<div class="loading-overlay" style="grid-column: 1/-1"><div class="spinner"></div>Fetching global market news...</div>';
+    }
 
-    fetchMarketNews().then(function (news) {
+    fetchMarketNews(null).then(function (res) {
+        var news = res.articles || [];
+        window._newsNextPage = res.nextPage;
+        window._globalNewsList = news;
         if (!news || !news.length) {
             list.innerHTML = '<div class="empty-state" style="grid-column: 1/-1"><div class="es-icon">📰</div><h3>No news available</h3></div>';
             aiText.innerHTML = "Currently unable to generate AI insights due to lack of market data.";
+            if (timeline) timeline.innerHTML = '<div style="padding: 10px; color: var(--text3);">No live events detected.</div>';
             return;
         }
 
-        var top = news.slice(0, 15);
-        drawNewsCards(top, list);
+        // Populate Interactive Timeline with top 5 articles
+        if (timeline) {
+            var topTimeline = news.slice(0, 5);
+            var startIdx = window._newsArticleCache.length;
+            topTimeline.forEach(function (a) { window._newsArticleCache.push(a); });
 
-        // Generate pseudo-AI summary based on real headlines
-        var keywords = top.slice(0, 3).map(function (n) { return n.headline.split(' ').slice(0, 4).join(' '); });
-        aiText.innerHTML = "<strong>AI Market Intelligence:</strong> The market is currently focused on <em>" + keywords[0] + "</em>, while sentiment is additionally being driven by <em>" + keywords[1] + "</em>. Trading volume appears correlated with these macro headlines.";
+            var timelineHtml = topTimeline.map(function (n, i) {
+                var d = new Date(n.datetime * 1000);
+                var timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                var dateStr = d.toLocaleDateString();
+                var currentIdx = startIdx + i;
+
+                return '<div class="timeline-point-container" onclick="window.openNewsModal(' + currentIdx + ')">' +
+                    '  <div class="timeline-text">' + n.headline + '</div>' +
+                    '  <div class="timeline-dot"></div>' +
+                    '  <div class="timeline-date-time">' +
+                    '    <div>' + dateStr + '</div>' +
+                    '    <div style="font-weight: bold; color: var(--primary);">' + timeStr + '</div>' +
+                    '  </div>' +
+                    '</div>';
+            }).join('');
+            timeline.innerHTML = timelineHtml;
+        }
+
+        // Populate Grid
+        renderNewsGridOnly();
+
+        // Generate pseudo-AI summary based on real headlines using Gemini 1.5 Pro
+        if (news.length > 0 && aiText) {
+            aiText.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; color: var(--text2); font-size: 14px;"><div class="spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>Synthesizing global market narrative using Gemini 1.5 Pro...</div>';
+            var headlinesStr = news.slice(0, 10).map(function (n) { return "- " + n.headline; }).join("\n");
+            var prompt = "You are a professional financial analyst. Based on the following recent global market headlines, provide a concise, high-level 2-sentence summary of the current global market sentiment. Do not use any introductory conversational filler phrases.\n\nHeadlines:\n" + headlinesStr;
+
+            callGeminiAPI(prompt, "gemini-1.5-pro").then(function (analysis) {
+                // remove asterisks if gemini returns bold markdown
+                var cleanText = analysis.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+                aiText.innerHTML = "<strong>Gemini AI Market Intelligence (Pro):</strong> " + cleanText;
+            });
+        }
     });
 }
 
@@ -626,24 +831,37 @@ window.openNewsModal = function (idx) {
         var date = new Date(n.datetime * 1000).toLocaleDateString();
 
         var html = '<div class="nm-body">';
+        if (n.image) {
+            html += '  <div class="nm-cover" style="height: 200px; background-image: url(\'' + n.image + '\'); background-size: cover; background-position: center; border-radius: 8px; margin-bottom: 20px;"></div>';
+        }
         html += '  <div class="nm-meta"><span class="nm-source">' + (n.source || 'News') + '</span><span>' + date + '</span></div>';
-        html += '  <div class="nm-title">' + n.headline + '</div>';
-        if (n.source) html += '  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:12px">By ' + n.source + ' Editorial Team</div>';
-        html += '  <div class="nm-keypoints">';
-        html += '    <h4>✨ AI Keypoints</h4>';
-        html += '    <ul>';
-        html += '      <li>' + (n.summary || 'Traders are monitoring the situation closely.') + '</li>';
-        html += '      <li>AI analysis: this event strongly correlates with sector momentum shifts.</li>';
-        html += '      <li>Historical data suggests ~14% volume increase on similar announcements.</li>';
-        html += '    </ul>';
+        html += '  <div class="nm-title" style="font-weight: 900; font-size: 22px; margin-bottom: 12px;">' + n.headline + '</div>';
+        html += '  <div class="nm-desc" style="font-size: 15px; color: var(--text2); line-height: 1.6; margin-bottom: 20px;">' + (n.summary || 'Traders are monitoring the situation closely.') + '</div>';
+
+        html += '  <div class="nm-keypoints" style="background: rgba(232, 134, 58, 0.1); border: 1px solid rgba(232, 134, 58, 0.3); padding: 16px; border-radius: 8px;">';
+        html += '    <h4 style="color: var(--primary); margin-bottom: 8px;">✨ Gemini AI Impact Prediction</h4>';
+        html += '    <div id="modal-gemini-prediction" style="font-size: 14px; color: var(--text); line-height: 1.5; margin: 0;">';
+        html += '       <div style="display: flex; align-items: center; gap: 8px; color: var(--text2);"><div class="spinner" style="width: 12px; height: 12px; border-width: 2px; border-top-color: var(--primary);"></div>Generating impact prediction...</div>';
+        html += '    </div>';
         html += '  </div>';
         html += '</div>';
         html += '<div class="nm-footer">';
-        if (n.url && n.url !== '#') html += '  <a href="' + n.url + '" target="_blank" class="btn-primary" style="text-decoration:none">Read Original Article ↗</a>';
+        if (n.url && n.url !== '#') html += '  <a href="' + n.url + '" target="_blank" class="btn-primary" style="text-decoration:none; text-align: center;">Read Original Article ↗</a>';
         html += '</div>';
 
         body.innerHTML = html;
         modal.classList.add('show');
+
+        // Fetch Individual Prediction using Gemini 1.5 Flash
+        var prompt = "You are a Wall Street quantitative analyst. Provide a brief, authoritative 1-sentence prediction on how the following news event will directly impact the financial markets or specific sectors. Do not use filler words.\n\nEvent title: " + n.headline + "\nEvent summary: " + (n.summary || "No summary");
+        callGeminiAPI(prompt, "gemini-1.5-flash").then(function (prediction) {
+            var pBox = document.getElementById('modal-gemini-prediction');
+            if (pBox) {
+                var cleanText = prediction.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+                pBox.innerHTML = cleanText;
+            }
+        });
+
     } catch (e) {
         console.error('Error opening news modal', e);
     }
@@ -668,11 +886,15 @@ function drawNewsCards(articles, container) {
         var date = new Date(n.datetime * 1000).toLocaleDateString();
         var idx = startIdx + i;
         var linkHtml = (n.url && n.url !== '#') ? '<a href="' + n.url + '" target="_blank" style="color:var(--primary);font-size:12px;text-decoration:none" onclick="event.stopPropagation()">Read article ↗</a>' : '';
-        return '<div class="news-card" style="cursor:pointer" onclick="window.openNewsModal(' + idx + ')">' +
-            '<div class="news-meta"><span class="news-source">' + (n.source || 'News') + '</span><span>' + date + '</span></div>' +
-            '<div class="news-title">' + n.headline + '</div>' +
-            '<div class="news-summary">' + (n.summary || '') + '</div>' +
-            linkHtml +
+        var imgHtml = n.image ? '<div class="news-card-img" style="height: 140px; background-image: url(\'' + n.image + '\'); background-size: cover; background-position: center; border-radius: 6px; margin-bottom: 12px;"></div>' : '';
+
+        return '<div class="news-card" style="display: flex; flex-direction: column; gap: 8px; cursor: pointer; padding: 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s;" onclick="window.openNewsModal(' + idx + ')">' +
+            imgHtml +
+            '<div class="news-meta" style="font-size: 12px; color: var(--text3); display: flex; justify-content: space-between;"><span class="news-source" style="font-weight: 700; color: var(--primary); text-transform: uppercase;">' + (n.source || 'News') + '</span><span>' + date + '</span></div>' +
+            '<div class="news-title" style="font-weight: 800; font-size: 16px; color: var(--text); line-height: 1.4;">' + n.headline + '</div>' +
+            '<div class="news-summary" style="font-size: 13px; color: var(--text2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">' + (n.summary || '') + '</div>' +
+            '<div style="background: rgba(42, 109, 191, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--teal); margin-top: auto; font-size: 12px; color: var(--text);"><span style="color: var(--teal); font-weight: bold;">✨ AI:</span> Potential market influence detected.</div>' +
+            '<div style="margin-top: 12px;">' + linkHtml + '</div>' +
             '</div>';
     }).join('');
 }
@@ -851,7 +1073,7 @@ function renderPortfolioChart() {
     var c = document.getElementById('portfolio-chart'); c.innerHTML = '';
     if (A.portfolioHistory.length < 2) { c.innerHTML = '<div class="loading-overlay" style="padding:30px">Not enough data yet — check back later</div>'; return; }
     var chart = LightweightCharts.createChart(c, chartOpts(c));
-    chart.addAreaSeries({ lineColor: '#7c6fff', topColor: 'rgba(124,111,255,0.3)', bottomColor: 'rgba(124,111,255,0)', lineWidth: 2 })
+    chart.addAreaSeries({ lineColor: '#e8863a', topColor: 'rgba(232,134,58,0.3)', bottomColor: 'rgba(232,134,58,0)', lineWidth: 2 })
         .setData(A.portfolioHistory.map(function (p) { return { time: Math.floor(p.time / 1000), value: p.value }; }));
     chart.timeScale().fitContent();
 }
@@ -944,7 +1166,7 @@ function sortAndRenderMarket(stocks, containerId, title) {
 
     // Draw canvases
     enriched.forEach(function (s) {
-        var color = s.growth >= 0 ? '#00d4aa' : '#ff6b6b';
+        var color = s.growth >= 0 ? '#00e676' : '#ff6b6b';
         renderSparkline('spark-' + s.symbol, s.candles, color);
     });
 }
@@ -1056,7 +1278,7 @@ function loadDetailChart(symbol, tf) {
         if (S_detailChart) { try { S_detailChart.remove(); } catch (e) { } }
         S_detailChart = chart;
         var seriesData = data.t.map(function (t, i) { return { time: t, value: data.c[i] }; }).sort(function (a, b) { return a.time - b.time; });
-        var areaSeries = chart.addAreaSeries({ lineColor: '#7c6fff', topColor: 'rgba(124,111,255,0.28)', bottomColor: 'rgba(124,111,255,0)', lineWidth: 2 });
+        var areaSeries = chart.addAreaSeries({ lineColor: '#e8863a', topColor: 'rgba(232,134,58,0.28)', bottomColor: 'rgba(232,134,58,0)', lineWidth: 2 });
         areaSeries.setData(seriesData);
         chart.timeScale().fitContent();
 
@@ -1315,6 +1537,20 @@ function renderSettings() {
         ['# Scenarios', G.scenarios.length],
     ];
     document.getElementById('settings-summary').innerHTML = rows.map(function (r) { return '<div class="stat-row"><span class="key">' + r[0] + '</span><span class="val">' + r[1] + '</span></div>'; }).join('');
+
+    var apiKeyStatus = document.getElementById('settings-api-status');
+    var apiKeyInput = document.getElementById('new-api-key');
+    if (apiKeyStatus && apiKeyInput) {
+        if (G.apiKey && !G.demoMode) {
+            apiKeyStatus.innerHTML = '<span style="color:var(--green)">Your API key is saved and active.</span> Paste a new one to replace it.';
+            apiKeyInput.placeholder = '•••••••••••••••••••••••••';
+            apiKeyInput.value = '';
+        } else {
+            apiKeyStatus.innerHTML = 'You are in Demo Mode. Paste an API key to go Live.';
+            apiKeyInput.placeholder = 'Paste new API key';
+            apiKeyInput.value = '';
+        }
+    }
 }
 
 function resetPortfolio() {
@@ -1330,7 +1566,7 @@ function updateApiKey() {
     if (!key) return showToast('Enter a new API key', 'error');
     G.apiKey = key; G.demoMode = false;
     if (G.simInterval) { clearInterval(G.simInterval); G.simInterval = null; }
-    saveState(); connectWS(); fetchAllPrices();
+    saveState(true); connectWS(); fetchAllPrices();
     showToast('Switched to live mode ✓', 'success');
 }
 
@@ -1338,6 +1574,7 @@ function updateApiKey() {
    PORTFOLIO HISTORY
    ============================================================ */
 function recordPortfolioSnapshot() {
+    if (!A.portfolioHistory) A.portfolioHistory = [];
     A.portfolioHistory.push({ time: Date.now(), value: totalValue() });
     if (A.portfolioHistory.length > 500) A.portfolioHistory = A.portfolioHistory.slice(-500);
     saveState();

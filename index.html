@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StockSim — Paper Trading Platform</title>
+    <title>StockTrack — Paper Trading Platform</title>
     <meta name="description"
         content="Track real stocks live and practice investing with an imaginary budget. No real money involved." />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
@@ -16,13 +16,83 @@
 <body>
 
     <!-- ═══════════════════════════════════════════════════════════
+     WELCOME SCREEN (Scroll-driven)
+════════════════════════════════════════════════════════════ -->
+    <div id="welcome-wrapper">
+        <div class="welcome-bg"></div>
+        <canvas id="welcome-canvas"></canvas>
+
+        <div id="welcome-screen">
+            <div class="welcome-center">
+                <h1 class="welcome-title">
+                    <span class="font-calligraphy">Stock</span><span class="font-ncl">Track</span>
+                </h1>
+                <p class="welcome-subtitle" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;">
+                    <span>EVERYTHING.</span> <span>EVERYWHERE.</span> <span>ALL AT THE SAME</span> <span
+                        class="highlight-price">PRICE.</span>
+                </p>
+                <div style="margin-top: 40px; text-align: center;">
+                    <button class="btn-welcome" id="btn-get-started">Get started</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="welcome-scroll-content">
+            <div class="scroll-section">
+                <h2>Real-time insights</h2>
+                <p>Experience the market like never before. Dive into analytics with zero latency.</p>
+            </div>
+
+            <div class="scroll-section" style="margin-top: 50vh;">
+                <h2>Functionalities</h2>
+                <p>Everything you need to master the market, simulated in real-time.</p>
+            </div>
+
+            <div class="scroll-section functionality-card" style="margin-top: 30vh;">
+                <div class="func-content">
+                    <h3>Live Charts</h3>
+                    <p>Track stocks with our interactive, high-performance charting library.</p>
+                </div>
+                <div class="func-image" id="img-live-charts"></div>
+            </div>
+
+            <div class="scroll-section functionality-card" style="margin-top: 30vh;">
+                <div class="func-content">
+                    <h3>AI News Analysis</h3>
+                    <p>Get instant AI breakdowns of the latest market news and their impact.</p>
+                </div>
+                <div class="func-image" id="img-ai-news"></div>
+            </div>
+
+            <div class="scroll-section functionality-card" style="margin-top: 30vh;">
+                <div class="func-content">
+                    <h3>Portfolio Management</h3>
+                    <p>Simulate buying and selling with paper money to practice your strategy.</p>
+                </div>
+                <div class="func-image" id="img-portfolio-mgmt"></div>
+            </div>
+
+            <div class="scroll-section" style="margin-top: 50vh; padding-bottom: 20vh;">
+                <h2>Flawless Execution</h2>
+                <p>Powered by advanced AI intelligence, bringing you tomorrow's data today.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
      AUTH SCREEN (Login / Register)
 ════════════════════════════════════════════════════════════ -->
     <div id="auth-screen">
         <div class="setup-card">
+            <!-- BACK BUTTON -->
+            <button id="btn-back-home"
+                style="background: none; border: none; color: var(--text3); font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 24px; padding: 0; font-family: inherit; transition: color 0.15s;"
+                onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">
+                <span>←</span> Back
+            </button>
+
             <div class="setup-logo">
-                <div class="logo-icon">📈</div>
-                <h1>StockSim</h1>
+                <h1><span class="font-calligraphy">Stock</span><span class="font-ncl">Track</span></h1>
             </div>
             <h2>Sign In</h2>
             <p>Log in or create an account to save your data across devices.</p>
@@ -42,7 +112,16 @@
                     <input type="password" id="login-pass" placeholder="Your password"
                         autocomplete="current-password" />
                 </div>
-                <button class="btn-primary" onclick="doLogin()">Log In →</button>
+                <div class="form-group"
+                    style="flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="login-remember" style="width: auto; margin: 0; cursor: pointer;" />
+                        <label for="login-remember"
+                            style="margin: 0; font-size: 13px; font-weight: normal; cursor: pointer; color: var(--text2);">Remember
+                            me</label>
+                    </div>
+                </div>
+                <button type="button" class="btn-primary" onclick="doLogin()">Log In →</button>
             </div>
 
             <div id="auth-register" style="display:none">
@@ -54,7 +133,7 @@
                     <label>Password</label>
                     <input type="password" id="reg-pass" placeholder="Min 6 characters" autocomplete="new-password" />
                 </div>
-                <button class="btn-primary" onclick="doRegister()">Create Account →</button>
+                <button type="button" class="btn-primary" onclick="doRegister()">Create Account →</button>
             </div>
 
             <div class="auth-error" id="auth-error"></div>
@@ -71,10 +150,9 @@
     <div id="setup-screen" style="display:none">
         <div class="setup-card">
             <div class="setup-logo">
-                <div class="logo-icon">📈</div>
-                <h1>StockSim</h1>
+                <h1><span class="font-calligraphy">Stock</span><span class="font-ncl">Track</span></h1>
             </div>
-            <h2>Welcome to StockSim</h2>
+            <h2>Welcome to StockTrack</h2>
             <p>Track real stocks with live prices and practice investing with an imaginary budget — zero real money.</p>
 
             <div class="form-group">
@@ -113,69 +191,75 @@
 ════════════════════════════════════════════════════════════ -->
     <div id="app">
 
-        <!-- SIDEBAR -->
-        <nav class="sidebar">
-            <div class="sidebar-logo">
-                <div class="logo-icon-sm">📈</div>
-                <span>StockSim</span>
-            </div>
-
-            <!-- SCENARIO SELECTOR -->
-            <div class="scenario-section">
-                <div class="scenario-label">SCENARIO</div>
-                <div class="scenario-selector" id="scenario-selector">
-                    <span class="scenario-dot" id="scenario-dot"></span>
-                    <span class="scenario-name" id="scenario-current-name">Scenario 1</span>
-                    <span class="scenario-arrow">▾</span>
+        <!-- FLOATING TOP NAV -->
+        <nav class="top-nav">
+            <div class="top-nav-left">
+                <div class="top-nav-logo" onclick="navigate('dashboard')" style="cursor:pointer;">
+                    <span class="font-calligraphy">Stock</span><span class="font-ncl">Track</span>
                 </div>
-                <div class="scenario-panel" id="scenario-panel">
-                    <div class="scenario-list" id="scenario-list"></div>
-                    <div class="scenario-new-form" id="scenario-new-form" style="display:none">
-                        <input type="text" id="new-sc-name" class="sc-input" placeholder="Scenario name">
-                        <input type="number" id="new-sc-budget" class="sc-input" placeholder="Budget ($)" value="10000"
-                            min="100">
-                        <div class="sc-form-btns">
-                            <button class="sc-form-cancel" id="sc-cancel-btn">Cancel</button>
-                            <button class="sc-form-confirm" id="sc-confirm-btn">Create</button>
+                <div class="top-nav-links">
+                    <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">Dashboard</div>
+                    <div class="nav-item" id="nav-market" onclick="navigate('market')">Market</div>
+                    <div class="nav-item" id="nav-news" onclick="navigate('news')">News</div>
+                    <div class="nav-item" id="nav-portfolio" onclick="navigate('portfolio')">Portfolio</div>
+                </div>
+            </div>
+            <div class="top-nav-right">
+                <div class="top-nav-scenario">
+                    <div class="scenario-selector" id="scenario-selector">
+                        <span class="scenario-dot" id="scenario-dot"></span>
+                        <span class="scenario-name" id="scenario-current-name">Scenario 1</span>
+                        <span class="scenario-arrow">▾</span>
+                    </div>
+                    <div class="scenario-panel" id="scenario-panel">
+                        <div class="scenario-list" id="scenario-list"></div>
+                        <div class="scenario-new-form" id="scenario-new-form" style="display:none">
+                            <input type="text" id="new-sc-name" class="sc-input" placeholder="Scenario name">
+                            <input type="number" id="new-sc-budget" class="sc-input" placeholder="Budget ($)"
+                                value="10000" min="100">
+                            <div class="sc-form-btns">
+                                <button class="sc-form-cancel" id="sc-cancel-btn">Cancel</button>
+                                <button class="sc-form-confirm" id="sc-confirm-btn">Create</button>
+                            </div>
+                        </div>
+                        <div class="scenario-actions" id="scenario-add-section">
+                            <button class="scenario-add-btn" id="scenario-add-btn">+ New Scenario</button>
                         </div>
                     </div>
-                    <div class="scenario-actions" id="scenario-add-section">
-                        <button class="scenario-add-btn" id="scenario-add-btn">+ New Scenario</button>
-                    </div>
                 </div>
-            </div>
-
-            <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">
-                <span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span>
-            </div>
-            <div class="nav-item" id="nav-market" onclick="navigate('market')">
-                <span class="nav-icon">📊</span><span class="nav-label">Market</span>
-            </div>
-            <div class="nav-item" id="nav-news" onclick="navigate('news')">
-                <span class="nav-icon">📰</span><span class="nav-label">News</span>
-            </div>
-            <div class="nav-item" id="nav-portfolio" onclick="navigate('portfolio')">
-                <span class="nav-icon">💼</span><span class="nav-label">Portfolio</span>
-            </div>
-            <div class="nav-item" id="nav-settings" onclick="navigate('settings')">
-                <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
-            </div>
-
-            <div class="sidebar-bottom">
-                <div class="sidebar-budget-card">
-                    <div class="sb-label">Available Cash</div>
-                    <div class="sb-value" id="sidebar-cash">$—</div>
-                    <div class="sb-sub" id="sidebar-total">Total: $—</div>
-                    <div class="live-badge" style="margin-top:8px">
-                        <span class="live-dot"></span> Live prices
-                    </div>
+                <div class="top-nav-cash">
+                    <span class="cash-label">Cash</span>
+                    <span class="cash-value" id="sidebar-cash">$—</span>
                 </div>
-                <div class="sidebar-user" id="sidebar-user">
-                    <span class="user-icon">👤</span>
-                    <span class="user-name" id="sidebar-username">—</span>
+                <div class="top-nav-user-wrap">
+                    <div class="top-nav-user" id="sidebar-user" onclick="toggleUserMenu()">
+                        <span class="user-name" id="sidebar-username">—</span>
+                        <span class="user-arrow">▾</span>
+                    </div>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <div class="user-dd-item" id="nav-settings" onclick="navigate('settings'); toggleUserMenu();">
+                            <span class="user-dd-icon">⚙</span> Settings
+                        </div>
+                        <div class="user-dd-divider"></div>
+                        <div class="user-dd-item user-dd-danger" onclick="doLogout()">
+                            <span class="user-dd-icon">→</span> Logout
+                        </div>
+                    </div>
                 </div>
             </div>
         </nav>
+
+        <!-- APP BACKGROUND TEXTURE -->
+        <div class="app-bg">
+            <div class="app-bg-blob app-bg-blob-1"></div>
+            <div class="app-bg-blob app-bg-blob-2"></div>
+            <div class="app-bg-blob app-bg-blob-3"></div>
+        </div>
+
+        <!-- Hidden elements for sidebar compatibility -->
+        <div style="display:none">
+            <span id="sidebar-total"></span>
+        </div>
 
         <main class="main-content">
 
@@ -260,13 +344,20 @@
                     <p>Information is collected and summarized by AI, not artificially generated.</p>
                 </div>
 
+                <div class="news-disclaimer mb20">
+                    <span class="nd-icon">ℹ️</span> Data provided by <a href="https://newsdata.io"
+                        target="_blank">NewsData.io</a> API. Live articles are updated directly from global sources.
+                </div>
+
                 <!-- LIVE MAJOR TOPICS TIMELINE -->
                 <div class="topics-timeline-container mb20">
                     <div class="section-title">Live Major Topics</div>
-                    <div class="timeline-scroller" id="live-timeline">
-                        <!-- Timeline bubbles populated by JS -->
-                        <div class="loading-overlay">
-                            <div class="spinner"></div>Loading global narrative...
+                    <div class="timeline-scroller">
+                        <div class="timeline-line" id="live-timeline">
+                            <!-- Timeline points populated by JS -->
+                            <div class="loading-overlay" style="width: 100%; border-radius: 8px;">
+                                <div class="spinner"></div>Loading global timeline...
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -349,69 +440,74 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- ── PORTFOLIO ── -->
-                <div class="view" id="view-portfolio">
-                    <div class="page-header">
-                        <h2>Portfolio</h2>
-                        <p>Your holdings and transaction history</p>
-                    </div>
-                    <div id="portfolio-content"></div>
+            <!-- ── PORTFOLIO ── -->
+            <div class="view" id="view-portfolio">
+                <div class="page-header">
+                    <h2>Portfolio</h2>
+                    <p>Your holdings and transaction history</p>
+                </div>
+                <div id="portfolio-content"></div>
+            </div>
+
+            <!-- ── SETTINGS ── -->
+            <div class="view" id="view-settings">
+                <div class="page-header">
+                    <h2>Settings</h2>
+                    <p>Manage your account</p>
                 </div>
 
-                <!-- ── SETTINGS ── -->
-                <div class="view" id="view-settings">
-                    <div class="page-header">
-                        <h2>Settings</h2>
-                        <p>Manage your account</p>
+                <!-- Custom budget reset -->
+                <div class="settings-card mb20">
+                    <div class="settings-card-info">
+                        <h3>💰 Reset Budget & Portfolio</h3>
+                        <p>Enter a custom amount, then reset to start fresh</p>
                     </div>
-
-                    <!-- Custom budget reset -->
-                    <div class="settings-card mb20">
-                        <div class="settings-card-info">
-                            <h3>💰 Reset Budget & Portfolio</h3>
-                            <p>Enter a custom amount, then reset to start fresh</p>
+                    <div class="settings-controls">
+                        <div class="budget-row">
+                            <span class="currency-prefix">$</span>
+                            <input type="number" id="new-budget-input" placeholder="e.g. 25000" min="100" step="100" />
                         </div>
-                        <div class="settings-controls">
-                            <div class="budget-row">
-                                <span class="currency-prefix">$</span>
-                                <input type="number" id="new-budget-input" placeholder="e.g. 25000" min="100"
-                                    step="100" />
-                            </div>
-                            <button class="btn-outline danger" onclick="resetPortfolio()">Reset</button>
-                        </div>
-                    </div>
-
-                    <!-- API key update -->
-                    <div class="settings-card mb20">
-                        <div class="settings-card-info">
-                            <h3>🔑 Update API Key</h3>
-                            <p>Replace your current Finnhub API key</p>
-                        </div>
-                        <div class="settings-controls">
-                            <input type="text" id="new-api-key" placeholder="New Finnhub API key" class="text-input" />
-                            <button class="btn-outline" onclick="updateApiKey()">Update</button>
-                        </div>
-                    </div>
-
-                    <div class="card mb20">
-                        <div class="section-title">Account Summary</div>
-                        <div id="settings-summary"></div>
-                    </div>
-
-                    <!-- Logout -->
-                    <div class="settings-card">
-                        <div class="settings-card-info">
-                            <h3>🚪 Logout</h3>
-                            <p>Sign out of your account on this device</p>
-                        </div>
-                        <div class="settings-controls">
-                            <button class="btn-outline danger" onclick="doLogout()">Logout</button>
-                        </div>
+                        <button class="btn-outline danger" onclick="resetPortfolio()">Reset</button>
                     </div>
                 </div>
+
+                <!-- API key update -->
+                <div class="settings-card mb20">
+                    <div class="settings-card-info">
+                        <h3>🔑 Update API Key</h3>
+                        <p id="settings-api-status">Replace your current Finnhub API key</p>
+                    </div>
+                    <div class="settings-controls">
+                        <input type="text" id="new-api-key" placeholder="New Finnhub API key" class="text-input" />
+                        <button class="btn-outline" onclick="updateApiKey()">Update</button>
+                    </div>
+                </div>
+
+                <div class="card mb20">
+                    <div class="section-title">Account Summary</div>
+                    <div id="settings-summary"></div>
+                </div>
+
+                <!-- Logout -->
+                <div class="settings-card">
+                    <div class="settings-card-info">
+                        <h3>🚪 Logout</h3>
+                        <p>Sign out of your account on this device</p>
+                    </div>
+                    <div class="settings-controls">
+                        <button class="btn-outline danger" onclick="doLogout()">Logout</button>
+                    </div>
+                </div>
+            </div>
 
         </main>
+
+        <!-- Global AI Disclaimer -->
+        <div class="global-ai-disclaimer">
+            <span class="ai-sparkle">✨</span> AI features are powered by Google's Gemini API.
+        </div>
     </div>
 
     <!-- ── NEWS ARTICLE MODAL ── -->
@@ -430,6 +526,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
+    <script src="welcome.js"></script>
 </body>
 
 </html>
