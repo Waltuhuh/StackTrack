@@ -638,7 +638,7 @@ function fetchCompanyNews(symbol, fromDate, toDate) {
    ============================================================ */
 
 function callGeminiAPI(prompt, model) {
-    if (!G.geminiKey) return Promise.reject(new Error("No Gemini API Key provided."));
+    if (!G.geminiKey) return Promise.resolve("⚠️ No Gemini API Key provided. Please add one in Settings.");
     if (!model) model = "gemini-1.5-flash"; // default fallback
     var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + G.geminiKey;
 
@@ -653,16 +653,23 @@ function callGeminiAPI(prompt, model) {
             }]
         })
     }).then(function (res) {
-        if (!res.ok) throw new Error("Gemini API Error: " + res.status);
+        if (!res.ok) {
+            return res.json().then(function (errData) {
+                var msg = (errData && errData.error && errData.error.message) ? errData.error.message : "HTTP " + res.status;
+                throw new Error("Gemini API Error: " + msg);
+            }).catch(function () {
+                throw new Error("Gemini API Error: " + res.status);
+            });
+        }
         return res.json();
     }).then(function (data) {
         if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
             return data.candidates[0].content.parts[0].text;
         }
-        return "Analysis currently unavailable.";
+        return "Analysis currently unavailable. (Empty response from Google)";
     }).catch(function (err) {
         console.error("Gemini API failed:", err);
-        return "Real-time AI analysis is currently unavailable. Please try again later.";
+        return "⚠️ " + err.message;
     });
 }
 
