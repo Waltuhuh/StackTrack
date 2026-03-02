@@ -172,6 +172,7 @@ function getFirestoreData() {
     });
     return {
         apiKey: G.apiKey || '',
+        geminiKey: G.geminiKey || '',
         demoMode: !!G.demoMode,
         activeIdx: G.activeIdx,
         scenarios: cleanScenarios,
@@ -188,6 +189,7 @@ function loadFromFirestore() {
         if (doc.exists && doc.data() && (doc.data().scenarios || doc.data().apiKey || doc.data().demoMode)) {
             var d = doc.data();
             G.apiKey = d.apiKey || '';
+            G.geminiKey = d.geminiKey || '';
             G.demoMode = !!d.demoMode;
             var rawScenarios = (d.scenarios && d.scenarios.length) ? d.scenarios : [newScenario('Scenario 1', 10000)];
             G.scenarios = rawScenarios.map(function (sc) {
@@ -201,10 +203,11 @@ function loadFromFirestore() {
             G.activeIdx = d.activeIdx || 0;
             if (G.activeIdx >= G.scenarios.length) G.activeIdx = 0;
             A = G.scenarios[G.activeIdx];
-            initApp();
+            try { initApp(); } catch (e) { console.error("initApp error:", e); }
         } else if (localData && (localData.apiKey || localData.demoMode)) {
             // Fallback to localStorage
             G.apiKey = localData.apiKey || '';
+            G.geminiKey = localData.geminiKey || '';
             G.demoMode = !!localData.demoMode;
             var rawScenarios = (localData.scenarios && localData.scenarios.length) ? localData.scenarios : [newScenario('Scenario 1', 10000)];
             G.scenarios = rawScenarios.map(function (sc) {
@@ -219,7 +222,7 @@ function loadFromFirestore() {
             if (G.activeIdx >= G.scenarios.length) G.activeIdx = 0;
             A = G.scenarios[G.activeIdx];
             syncToFirestore(true); // Sync the local recovery up to Firebase
-            initApp();
+            try { initApp(); } catch (e) { console.error("initApp error:", e); }
         } else {
             // No saved data anywhere — show setup screen
             document.getElementById('setup-screen').style.display = 'flex';
@@ -443,10 +446,13 @@ function wireScenarioEvents() {
    ============================================================ */
 function startApp() {
     var key = document.getElementById('api-key-input').value.trim();
+    var geminiKey = document.getElementById('gemini-key-input').value.trim();
     var budget = parseFloat(document.getElementById('budget-input').value);
     if (!key) return showToast('Enter an API key, or click Demo Mode', 'error');
     if (!budget || budget < 100) return showToast('Minimum budget is $100', 'error');
-    G.apiKey = key; G.demoMode = false;
+    G.apiKey = key;
+    G.geminiKey = geminiKey;
+    G.demoMode = false;
     G.scenarios = [newScenario('Scenario 1', budget)];
     G.activeIdx = 0; A = G.scenarios[0];
     saveState(true); initApp();
@@ -454,8 +460,11 @@ function startApp() {
 
 function startDemo() {
     var budget = parseFloat(document.getElementById('budget-input').value) || 10000;
+    var geminiKey = document.getElementById('gemini-key-input').value.trim();
     if (budget < 100) return showToast('Minimum budget is $100', 'error');
-    G.apiKey = ''; G.demoMode = true;
+    G.apiKey = '';
+    G.geminiKey = geminiKey;
+    G.demoMode = true;
     G.scenarios = [newScenario('Scenario 1', budget)];
     G.activeIdx = 0; A = G.scenarios[0];
     saveState(true); initApp();
@@ -627,11 +636,11 @@ function fetchCompanyNews(symbol, fromDate, toDate) {
 /* ============================================================
    GOOGLE GEMINI API INTEGRATION
    ============================================================ */
-var GEMINI_API_KEY = "AIzaSyBeS77t2sup9eHM59iQW8gwKEvzBdQYb9I";
 
 function callGeminiAPI(prompt, model) {
+    if (!G.geminiKey) return Promise.reject(new Error("No Gemini API Key provided."));
     if (!model) model = "gemini-1.5-flash"; // default fallback
-    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + GEMINI_API_KEY;
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + G.geminiKey;
 
     return fetch(url, {
         method: 'POST',
@@ -1524,33 +1533,48 @@ function renderPortfolio() {
    SETTINGS
    ============================================================ */
 function renderSettings() {
-    var tv = totalValue(), gl = gainLoss(), glp = gainLossPct(), up = gl >= 0, col = up ? 'var(--green)' : 'var(--red)';
-    var mode = G.demoMode ? '<span style="color:var(--teal)">⚡ Demo</span>' : '<span style="color:var(--green)">🔴 Live</span>';
-    var email = currentUser ? currentUser.email : '—';
-    var rows = [
-        ['Account', '<strong>' + email + '</strong>'],
-        ['Active Scenario', '<span style="color:' + A.color + ';font-weight:700">' + A.name + '</span>'],
-        ['Mode', mode], ['Starting Budget', fmt(A.budget)], ['Current Cash', fmt(A.cash)],
-        ['Holdings Value', fmt(holdingsValue())], ['Total Value', '<strong>' + fmt(tv) + '</strong>'],
-        ['Total Gain / Loss', '<span style="color:' + col + '">' + (up ? '+' : '') + fmt(gl) + ' (' + (up ? '+' : '') + glp.toFixed(2) + '%)</span>'],
-        ['# Positions', Object.keys(A.portfolio).length], ['# Transactions', A.transactions.length],
-        ['# Scenarios', G.scenarios.length],
-    ];
-    document.getElementById('settings-summary').innerHTML = rows.map(function (r) { return '<div class="stat-row"><span class="key">' + r[0] + '</span><span class="val">' + r[1] + '</span></div>'; }).join('');
-
-    var apiKeyStatus = document.getElementById('settings-api-status');
-    var apiKeyInput = document.getElementById('new-api-key');
-    if (apiKeyStatus && apiKeyInput) {
+    // Finnhub Key Display
+    var statusEl = document.getElementById('settings-api-status');
+    var inputEl = document.getElementById('new-api-key');
+    if (statusEl && inputEl) {
         if (G.apiKey && !G.demoMode) {
-            apiKeyStatus.innerHTML = '<span style="color:var(--green)">Your API key is saved and active.</span> Paste a new one to replace it.';
-            apiKeyInput.placeholder = '•••••••••••••••••••••••••';
-            apiKeyInput.value = '';
+            statusEl.innerHTML = 'Status: <span style="color:var(--green)">Active</span> (' + G.apiKey.substring(0, 4) + '...' + ')';
+            inputEl.placeholder = "Enter new Finnhub API key";
+        } else if (G.demoMode) {
+            statusEl.innerHTML = 'Status: <span style="color:var(--orange)">Demo Mode</span>';
+            inputEl.placeholder = "Enter Finnhub API key to switch to Live";
         } else {
-            apiKeyStatus.innerHTML = 'You are in Demo Mode. Paste an API key to go Live.';
-            apiKeyInput.placeholder = 'Paste new API key';
-            apiKeyInput.value = '';
+            statusEl.innerHTML = 'Status: <span style="color:var(--red)">No live key</span>';
+            inputEl.placeholder = "Enter Finnhub API key";
         }
     }
+
+    // Gemini Key Display
+    var geminiStatusEl = document.getElementById('settings-gemini-status');
+    var geminiInputEl = document.getElementById('new-gemini-key');
+    if (geminiStatusEl && geminiInputEl) {
+        if (G.geminiKey) {
+            geminiStatusEl.innerHTML = 'Status: <span style="color:var(--green)">Active</span> (' + G.geminiKey.substring(0, 4) + '...' + ')';
+            geminiInputEl.placeholder = "Enter new Gemini API key";
+        } else {
+            geminiStatusEl.innerHTML = 'Status: <span style="color:var(--text3)">Disabled</span> (Requires API Key)';
+            geminiInputEl.placeholder = "Enter Gemini API key";
+        }
+    }
+
+    // Summary Display
+    var hs = Object.values(A.portfolio).reduce(function (s, p) { return s + p.shares; }, 0);
+    var html = '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 0;">'
+        + '<span style="color:var(--text2)">Total Value</span><span style="font-weight:600">' + fmt(totalValue()) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 0;">'
+        + '<span style="color:var(--text2)">Cash</span><span>' + fmt(A.cash) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 0;">'
+        + '<span style="color:var(--text2)">Holdings</span><span>' + hs.toLocaleString() + ' shares</span></div>'
+        + '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:12px 0;">'
+        + '<span style="color:var(--text2)">Gain / Loss</span><span style="color:' + (gainLoss() >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (gainLoss() >= 0 ? '+' : '') + fmt(gainLoss()) + ' (' + (gainLoss() >= 0 ? '+' : '') + gainLossPct().toFixed(2) + '%)</span></div>'
+        + '<div style="display:flex;justify-content:space-between;padding:12px 0;">'
+        + '<span style="color:var(--text2)">Active Scenario</span><span style="color:' + A.color + ';font-weight:700">' + A.name + '</span></div>';
+    document.getElementById('settings-summary').innerHTML = html;
 }
 
 function resetPortfolio() {
@@ -1563,11 +1587,26 @@ function resetPortfolio() {
 
 function updateApiKey() {
     var key = document.getElementById('new-api-key').value.trim();
-    if (!key) return showToast('Enter a new API key', 'error');
-    G.apiKey = key; G.demoMode = false;
-    if (G.simInterval) { clearInterval(G.simInterval); G.simInterval = null; }
-    saveState(true); connectWS(); fetchAllPrices();
-    showToast('Switched to live mode ✓', 'success');
+    if (!key) return showToast('Please enter a valid key', 'error');
+    G.apiKey = key;
+    document.getElementById('new-api-key').value = '';
+    saveState(true);
+    renderSettings();
+    showToast('Finnhub API Key updated', 'success');
+}
+
+function updateGeminiKey() {
+    var key = document.getElementById('new-gemini-key').value.trim();
+    if (!key) {
+        G.geminiKey = '';
+        showToast('Gemini AI disabled.', 'info');
+    } else {
+        G.geminiKey = key;
+        showToast('Gemini API Key saved!', 'success');
+    }
+    document.getElementById('new-gemini-key').value = '';
+    saveState(true);
+    renderSettings();
 }
 
 /* ============================================================
