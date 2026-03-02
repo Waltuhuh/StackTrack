@@ -1,6 +1,21 @@
 /* ═════════════════════════════════════════════
    RESET & VARIABLES
 ═══════════════════════════════════════════ */
+@font-face {
+  font-family: "Calligraphy Brillian";
+  src: url("Calligraphy Brilliant.otf") format("opentype"),
+    url("Calligraphy Brilliant.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "NCL Gasdrifo";
+  src: url("NCLGasdrifo-Demo.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+}
+
 *,
 *::before,
 *::after {
@@ -52,7 +67,6 @@ body {
   background: var(--bg);
   z-index: 9999;
   transition: opacity 0.8s ease;
-  overflow: hidden;
 }
 
 .welcome-bg {
